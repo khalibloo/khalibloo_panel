@@ -1,0 +1,83 @@
+// DAZ Studio version 4.6.1.39 filetype DAZ Script
+
+/*********************************************************************/
+// Array<DzProperty> :
+function getGroupProperties( oGroup, bTraverse, bRecurse )
+{
+	// Declare an array to hold properties
+	var aProperties = [];
+ 
+	// If a group isn't passed in
+	if( !oGroup ){
+		// We're done, return an empty array
+		return aProperties;
+	// If a group is passed in
+	} else {
+		// Get the number of proeprties in the group
+		var nProperties = oGroup.getNumProperties();
+		// Pre-size the properties array
+		aProperties = new Array( nProperties );
+		// Iterate over the properties, setting each element in the array
+		for( var i = 0; i < nProperties; i += 1 ){
+			aProperties[ i ] = oGroup.getProperty( i );
+		}
+ 
+		// If we are recursing
+		if( bRecurse ){
+			// Concatenate the properties array from child groups
+			aProperties = aProperties.concat( getGroupProperties( oGroup.getFirstChild(), bTraverse, bRecurse ) );
+		}
+ 
+		// If we are traversing
+		if( bTraverse ){
+			// Concatenate the properties array from sibling groups
+			aProperties = aProperties.concat( getGroupProperties( oGroup.getNextSibling(), bTraverse, bRecurse ) );
+		}
+	}
+ 
+	// Return the array of properties
+	return aProperties;
+}
+ 
+/*********************************************************************/
+// Array<DzProperty> :
+function getNodeProperties( oNode, bTraverse, bRecurse )
+{
+	// Get the property group tree for the node
+	var oPropertyGroupTree = oNode.getPropertyGroups();
+	// Get the first group in the tree
+	var oPropertyGroup = oPropertyGroupTree.getFirstChild();
+	// Get the properties for the node
+	return getGroupProperties( oPropertyGroup, bTraverse, bRecurse );
+}
+ 
+/*********************************************************************/
+// Get the primary selection
+var oNode = Scene.getPrimarySelection();
+// If something is selected
+if( oNode ){
+	// Get the properties available to the user by way of the selected node
+	var aProperties = getNodeProperties( oNode, true, true );
+	// Declare variables we'll be using as we iterate
+	var oProperty, oOwner;
+	// Iterate over all properties
+	for( var i = 0; i < aProperties.length; i += 1 ){
+		// Get the "current" property
+		oProperty = aProperties[ i ];
+		// Get the owner of the property
+		oOwner = oProperty.getOwner();
+		// If the property is on the node itself
+		if( oOwner.inherits( "DzNode" ) ){
+			//print( String( "%1 : %2 : %3" ).arg( oOwner.className() ).arg( oProperty.name ).arg( oProperty.getLabel() ) );
+			print(oProperty.getLabel());
+			print(oProperty.name);
+			//print(oProperty.getValue());
+		// If the property is not on the node itself
+		} else {
+			//print( String( "%1 : %2 : %3" ).arg( oOwner.className() ).arg( oOwner.name ).arg( oProperty.getLabel() ) );
+			print(oProperty.getLabel());
+			print(oOwner.name);
+			//print(oProperty.getValue());
+		}
+	}
+}
