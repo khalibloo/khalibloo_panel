@@ -1,0 +1,384 @@
+// DAZ Studio version 4.6.1.39 filetype DAZ Script
+
+function exportObj(name, targetPath){
+	// Get the primary selection to use for the file name
+	var oNode = Scene.getPrimarySelection();
+	// If something is selected
+	if( oNode ){
+		// Get the node's skeleton
+		var oSkeleton = oNode.getSkeleton();
+		 //If it has a skeleton
+		if( oSkeleton )	{
+			// That is the node we want for the name
+			oNode = oSkeleton;
+		}
+	}
+	
+	var fileName = name;
+	var filePath = targetPath;
+ 
+	// Get the export manager
+	var oExportMgr = App.getExportMgr();
+	// Define the class name the for Wavefront Object (*.obj) exporter
+	var sClassName = "DzObjExporter";
+	// Find the exporter
+	var oExporter = oExportMgr.findExporterByClassName( sClassName );
+	// If the exporter exists
+	if( oExporter ){
+		// Create a settings object
+		var oSettings = new DzFileIOSettings();
+ 
+		// Fill the settings object with the default options from the exporter
+		//oExporter.getDefaultOptions( oSettings );
+ 
+		// Set the desired settings for the exporter
+		//oSettings.setStringValue( "Preset", "Poser (1 unit = 8ft)" );
+ 
+		// Set the scale to write the data
+		oSettings.setFloatValue( "Scale", 100 );
+		// Set the lateral axis to X
+		oSettings.setStringValue( "LatAxis", "X" );
+		// Set the vertical axis to Y
+		oSettings.setStringValue( "VertAxis", "Z" );
+		// Set the depth axis to Z
+		oSettings.setStringValue( "DepthAxis", "Y" );
+		// Do not invert the lateral axis
+		oSettings.setBoolValue( "InvertLat", true );
+		// Do not invert the vertical axis
+		oSettings.setBoolValue( "InvertVert", false );
+		// Do not invert the depth axis
+		oSettings.setBoolValue( "InvertDepth", false );
+		// Do not ignore the geometry of invisible nodes
+		oSettings.setBoolValue( "IgnoreInvisible", true );
+		// Do not weld seams between parent and child bones on legacy figures - deprecated
+		oSettings.setBoolValue( "WeldSeams", false );
+		// Do not remove vertices that are floating, connected to nothing - i.e. LOD
+		oSettings.setBoolValue( "RemoveUnusedVerts", false );
+		// Write vertex textures - UVs
+		oSettings.setBoolValue( "WriteVT", false );
+		// Do not write vertex normals
+		oSettings.setBoolValue( "WriteVN", false );
+		// Do not write object statements for each root node - i.e. figures, props
+		oSettings.setBoolValue( "WriteO", false );
+ 
+		// Write facet groups
+		oSettings.setBoolValue( "WriteG", false );
+		// Write facet groups according to whatever the geometry already has
+		oSettings.setBoolValue( "GroupGeom", false );
+		// Do not write facet groups according to the node it is associated with
+		oSettings.setBoolValue( "GroupNodes", false );
+		// Do not write facet groups according to surface groups
+		oSettings.setBoolValue( "GroupSurfaces", false );
+		// Do not write one facet group
+		oSettings.setBoolValue( "GroupSingle", false );
+ 
+		// Write surface groups
+		oSettings.setBoolValue( "WriteUsemtl", false );
+ 
+		// Do not write a material library
+		oSettings.setBoolValue( "WriteMtllib", false );
+		// Do not collect texture maps
+		oSettings.setBoolValue( "CollectMaps", false );
+		// Do not convert texture maps
+		oSettings.setBoolValue( "ConvertMaps", false );
+ 
+		// Limit export to selection - only available in 4.5.x +
+		oSettings.setBoolValue( "SelectedOnly", true );
+		// Do not limit export to the selected roots - only available in 4.5.x +
+		oSettings.setBoolValue( "SelectedRootsOnly", false );
+		// Do not limit export to the primary selected root
+		// This setting overrides SelectedRootsOnly - only available in 4.5.x +
+		oSettings.setBoolValue( "PrimaryRootOnly", false );
+		// Do not export items that are parented to the selection - only available in 4.5.x +
+		oSettings.setBoolValue( "IncludeParented", false );
+ 
+		// Do not display the options dialog
+		oSettings.setIntValue( "RunSilent", 1 );
+ 
+		// If we've got a node, construct the path using the
+		// exporter's last path, the node's name, and the
+		// exporter's extension...
+		// Otherwise, just use the exporter's last path
+		var fullPath = ( oNode ?
+				String( "%1/%2.%3" )
+					.arg( filePath )
+					.arg( fileName )
+					.arg( oExporter.getExtension() ) :
+				oExportMgr.getExportPath() );
+ 
+		// Prompt the user to choose a file,
+		// use the exporter to build the title bar caption,
+		// the initial path and the filter
+		//var sPath = FileDialog.doFileDialog( false,
+			//String( "Custom Export : %1 : %2" )
+				//.arg( oExporter.getDescription() )
+				//.arg( oSettings.getStringValue( "Preset" ) ),
+			//sInitialPath,
+			//String( "%1 (*.%2)" )
+				//.arg( oExporter.getDescription() )
+				//.arg( oExporter.getExtension() ) );
+ 
+		// If the user didn't cancel and the file doesn't already
+		// exist, or the user wants to overwrite it
+		if( fullPath && MainWindow.checkExistingFile( fullPath ) ){
+			// Write the file using the options specified
+			oExporter.writeFile( fullPath, oSettings );
+		}
+	// We didn't find an exporter with the class name we wanted
+	}
+		else {
+		// Inform the user
+		MessageBox.critical(String("An asset filter with the class name \"%1\" " +
+			"could not be found.").arg( sClassName ),
+			"Critical Error", "&OK");
+	}
+}
+
+
+/*********************************************************************/
+// Array<DzProperty> :
+function getGroupProperties( oGroup, bTraverse, bRecurse )
+{
+	// Declare an array to hold properties
+	var aProperties = [];
+ 
+	// If a group isn't passed in
+	if( !oGroup ){
+		// We're done, return an empty array
+		return aProperties;
+	// If a group is passed in
+	} else {
+		// Get the number of proeprties in the group
+		var nProperties = oGroup.getNumProperties();
+		// Pre-size the properties array
+		aProperties = new Array( nProperties );
+		// Iterate over the properties, setting each element in the array
+		for( var i = 0; i < nProperties; i += 1 ){
+			aProperties[ i ] = oGroup.getProperty( i );
+		}
+ 
+		// If we are recursing
+		if( bRecurse ){
+			// Concatenate the properties array from child groups
+			aProperties = aProperties.concat( getGroupProperties( oGroup.getFirstChild(), bTraverse, bRecurse ) );
+		}
+ 
+		// If we are traversing
+		if( bTraverse ){
+			// Concatenate the properties array from sibling groups
+			aProperties = aProperties.concat( getGroupProperties( oGroup.getNextSibling(), bTraverse, bRecurse ) );
+		}
+	}
+ 
+	// Return the array of properties
+	return aProperties;
+}
+ 
+/*********************************************************************/
+// Array<DzProperty> :
+function getNodeProperties( oNode, bTraverse, bRecurse )
+{
+	// Get the property group tree for the node
+	var oPropertyGroupTree = oNode.getPropertyGroups();
+	// Get the first group in the tree
+	var oPropertyGroup = oPropertyGroupTree.getFirstChild();
+	// Get the properties for the node
+	return getGroupProperties( oPropertyGroup, bTraverse, bRecurse );
+}
+/*********************************************************************/
+
+function searchArray (array, query) {
+	var list = array;
+	var element = query;
+	
+	for (var i = 0; i < list.length; i += 1) {
+		if (list[i] == element) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/*********************************************************************/
+
+
+function othersInvisible () {
+	var aNode = Scene.getNodeList();
+	if (aNode) {
+		var oMainNode = Scene.getPrimarySelection();
+		var oMainObj = oMainNode.getObject();
+		var objList = new Array (aNode.length);
+		var obj;
+		var j = 0; //for objList iteration
+
+		for (var i = 0; i < aNode.length; i += 1) {
+			oNode = aNode[i];
+			obj = oNode.getObject();
+	
+			if (oNode.inherits("DzBone")) {
+				var fig = oNode.getSkeleton();
+				if (fig) {
+					obj = fig.getObject();
+				}
+			}
+	
+			if (objList.find(obj) == -1) {
+				objList[j] = obj;
+				j += 1;
+			}
+		}
+
+		//after generating the list, we need to cleanup null elements
+		obj = objList[objList.length - 1];
+		while (obj == null) {
+			objList.pop();
+			obj = objList[objList.length - 1];
+		}
+
+
+		//now we act
+		for (var i = 0; i < aNode.length; i += 1) {
+			oNode = aNode[i];
+			obj = oNode.getObject();
+			//if obj is in objList
+			if (objList.find(obj) != -1) {
+				//if obj is not the primary selection
+				if (obj != oMainObj) {
+					oNode.setVisible(false);
+				}
+			}
+		}
+	}
+}
+
+/*********************************************************************/
+
+function allVisible(){
+	var aNode = Scene.getNodeList();
+	for (var i = 0; i < aNode.length; i += 1) {
+		aNode[i].setVisible(true);
+	}
+}
+
+/*********************************************************************/
+
+function restoreVisibility(visibilityList){
+	var list = visibilityList;
+	var aNode = Scene.getNodeList();
+	for (var i = 0; i < aNode.length; i += 1) {
+		aNode[i].setVisible(list[i]);
+	}
+}
+
+/*********************************************************************/
+
+function backupResolution(aProperties){
+	var propList = aProperties;
+	//[0] for res level and [1] for subD level
+	var aResolution = new Array (2);
+	for( var i = 0; i < aProperties.length; i += 1 ){
+		// Get the "current" property
+		oProperty = aProperties[ i ];
+		
+		//resolution settings
+		if (oProperty.getLabel() == "Resolution Level") {
+			aResolution[0] = oProperty.getValue();
+			oProperty.setValue(0);
+		}
+		else if (oProperty.getLabel() == "SubDivision Level") {
+			aResolution[1] = oProperty.getValue();
+			oProperty.setValue(0);
+		}
+	}
+	return aResolution;
+}
+
+
+/*********************************************************************/
+
+function restoreResolution(aProperties, aResolution){
+	var propList = aProperties;
+	//aResolution: [0] for res level and [1] for subD level
+	for( var i = 0; i < aProperties.length; i += 1 ){
+		// Get the "current" property
+		oProperty = aProperties[ i ];
+		
+		if (oProperty.getLabel() == "Resolution Level") {
+			oProperty.setValue(aResolution[0]);
+		}
+		else if (oProperty.getLabel() == "SubDivision Level") {
+			oProperty.setValue(aResolution[1]);
+		}
+	}
+}
+
+/*********************************************************************/
+
+function backupVisibility(){
+	var aNode = Scene.getNodeList();
+	var aVisibilityList = new Array(aNode.length);
+	for (var i = 0; i < aNode.length; i += 1) {
+		aVisibilityList[i] = aNode[i].isVisible();
+	}
+	return aVisibilityList;
+}
+
+/*********************************************************************/
+//LET'S GO!
+var morphListFile = FileDialog.doFileDialog( true, "Select Morph List File", App.getDocumentsPath(), "Text files (*.txt)");
+if (morphListFile){
+	//print(morphListFile);
+	var targetFolder = FileDialog.doDirectoryDialog("Choose Target Folder For OBJs", "", App.getDocumentsPath() );
+	//print(targetFolder);
+	if (targetFolder) {
+		var file = DzFile(morphListFile);
+		file.open(1);
+		var morphList = file.readLines();
+		file.close();
+		for( var i = 0; i < morphList.length; i += 1 ){
+			morphList[i] = morphList[i].trim();
+		}
+		var aVisibilityBackup = backupVisibility();
+		othersInvisible();
+		//print(morphList);
+	
+		// Get the primary selection
+		var oNode = Scene.getPrimarySelection();
+		// If something is selected
+		if( oNode ){
+			// Get the properties available to the user by way of the selected node
+			var aProperties = getNodeProperties( oNode, true, true );
+			// Declare variables we'll be using as we iterate
+			var oProperty, oOwner;
+			aResolutionBackup = backupResolution(aProperties);
+			// Iterate over all properties
+			for( var i = 0; i < aProperties.length; i += 1 ){
+				// Get the "current" property
+				oProperty = aProperties[ i ];
+				// Get the owner of the property
+				oOwner = oProperty.getOwner();
+				// If the property is on the node itself
+				if( oOwner.inherits( "DzNode" ) ){
+					var propertyName = oProperty.name;
+				}
+				// If the property is not on the node itself
+				else {
+					var propertyName = oOwner.name;
+				}
+				//print(propertyName);
+				//var search = searchArray(morphList, propertyName);
+				var search = morphList.find(propertyName);
+				//print(String(search));
+				if (search != -1) {
+					//print("Found!");
+					var valueBackup = oProperty.getValue();
+					oProperty.setValue(1);
+					exportObj(propertyName, targetFolder);
+					oProperty.setValue(valueBackup);
+				}
+			}
+			restoreVisibility(aVisibilityBackup);
+			restoreResolution(aProperties, aResolutionBackup);
+		}
+	}
+}
